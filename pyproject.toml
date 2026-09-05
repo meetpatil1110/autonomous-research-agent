@@ -13,6 +13,7 @@ dependencies = [
     "python-dotenv==1.0.1",
     "pydantic==2.10.4",
     "typing_extensions==4.12.2",
+    "tavily-python==0.8.1",
 ]
 
 [project.optional-dependencies]
