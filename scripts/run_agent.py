@@ -4,26 +4,15 @@ from __future__ import annotations
 import sys
 import uuid
 
-from agent.graph import build_graph
+from agent.graph import DEFAULT_RECURSION_LIMIT, build_graph, initial_state
 
 
 def main() -> None:
     question = " ".join(sys.argv[1:]) or input("Research question: ")
     graph = build_graph()
     result = graph.invoke(
-        {
-            "run_id": uuid.uuid4().hex,
-            "question": question,
-            "plan": [],
-            "findings": [],
-            "tool_calls": [],
-            "iteration": 0,
-            "max_iterations": 3,
-            "max_total_steps": 8,
-            "current_step_id": None,
-            "report": "",
-        },
-        config={"recursion_limit": 50},
+        initial_state(question, uuid.uuid4().hex),
+        config={"recursion_limit": DEFAULT_RECURSION_LIMIT},
     )
 
     print("\n=== Plan ===")

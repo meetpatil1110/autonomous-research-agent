@@ -11,6 +11,25 @@ from .state import AgentState
 from .tool_selector import select_tool_with_fallback
 from .tools.registry import run_tool
 
+DEFAULT_MAX_ITERATIONS = 3
+DEFAULT_MAX_TOTAL_STEPS = 8
+DEFAULT_RECURSION_LIMIT = 50
+
+
+def initial_state(question: str, run_id: str) -> AgentState:
+    return {
+        "run_id": run_id,
+        "question": question,
+        "plan": [],
+        "findings": [],
+        "tool_calls": [],
+        "iteration": 0,
+        "max_iterations": DEFAULT_MAX_ITERATIONS,
+        "max_total_steps": DEFAULT_MAX_TOTAL_STEPS,
+        "current_step_id": None,
+        "report": "",
+    }
+
 
 def plan_node(state: AgentState) -> dict:
     step_descriptions = generate_plan(call_groq, state["question"])
