@@ -11,7 +11,18 @@ RUN pip install --no-cache-dir .
 # time instead of downloading it on the first live request — Render's free
 # tier spins the container down when idle, so without this every wake-up
 # would re-pay that download inside a user-facing request.
-RUN python -c "import chromadb; chromadb.Client().get_or_create_collection('warmup', metadata={'hnsw:space': 'cosine'})"
+#
+# Pre-fetches the archive with a plain urlretrieve first: chromadb's own
+# httpx-based downloader uses a short default timeout that a slow or
+# jittery connection to a large file can miss, even though the transfer
+# is still progressing. Creating the collection alone doesn't trigger the
+# download at all; an actual embedding call (.add here) does.
+COPY docker/fetch_embedding_model.py ./
+RUN python fetch_embedding_model.py && rm fetch_embedding_model.py
+RUN python -c "\
+import chromadb; \
+c = chromadb.Client().get_or_create_collection('warmup', metadata={'hnsw:space': 'cosine'}); \
+c.add(ids=['1'], documents=['warmup'])"
 
 ENV PYTHONUNBUFFERED=1
 
