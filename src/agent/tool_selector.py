@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 
+from groq import GroqError
 from typing_extensions import TypedDict
 
 from .planner import LLMCall
@@ -43,3 +44,17 @@ def select_tool(llm_call: LLMCall, sub_question: str) -> ToolDecision:
     if not decision.get("tool_input"):
         raise ValueError("Tool decision is missing tool_input")
     return decision
+
+
+def select_tool_with_fallback(llm_call: LLMCall, sub_question: str) -> ToolDecision:
+    """Same as select_tool, but never raises.
+
+    Tool-selection calls occasionally fail outright (e.g. a reasoning model
+    burning its whole token budget on hidden reasoning for a hard question
+    and returning empty content) — one bad selection shouldn't crash the
+    research run, so this falls back to a plain web search of the question.
+    """
+    try:
+        return select_tool(llm_call, sub_question)
+    except (GroqError, ValueError, json.JSONDecodeError):
+        return {"tool": "web_search", "tool_input": sub_question}
