@@ -150,7 +150,7 @@ rather than all at once at the end.
 pytest -q
 ```
 
-All 45 tests run without needing real API keys or network access — LLM
+All 46 tests run without needing real API keys or network access — LLM
 calls are injected/mocked, except for the ChromaDB memory tests, which
 exercise real local embeddings (no API key needed, downloads a small model
 on first run) to actually verify the semantic matching works rather than
