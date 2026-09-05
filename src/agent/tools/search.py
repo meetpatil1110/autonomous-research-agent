@@ -13,7 +13,7 @@ class SearchResult(TypedDict):
     content: str
 
 
-def web_search(query: str, *, max_results: int = 5) -> list[SearchResult]:
+def web_search(query: str, *, max_results: int = 3) -> list[SearchResult]:
     settings = get_settings()
     if not settings.tavily_api_key:
         raise RuntimeError(

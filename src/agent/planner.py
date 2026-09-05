@@ -8,13 +8,7 @@ from __future__ import annotations
 import json
 from typing import Callable
 
-from typing_extensions import TypedDict
-
-
-class Finding(TypedDict):
-    step_id: int
-    content: str
-
+from .state import Finding
 
 LLMCall = Callable[[str, str], str]
 
@@ -44,10 +38,18 @@ def generate_plan(llm_call: LLMCall, question: str) -> list[str]:
     return steps[:4]
 
 
+_MAX_FINDINGS_IN_PROMPT = 10
+_MAX_FINDING_CHARS = 300
+
+
+def _format_findings(findings: list[Finding]) -> str:
+    recent = findings[-_MAX_FINDINGS_IN_PROMPT:]
+    lines = [f"- {f['content'][:_MAX_FINDING_CHARS]}" for f in recent]
+    return "\n".join(lines) or "(no findings yet)"
+
+
 def replan(llm_call: LLMCall, question: str, findings: list[Finding]) -> list[str]:
-    findings_text = (
-        "\n".join(f"- {f['content']}" for f in findings) or "(no findings yet)"
-    )
+    findings_text = _format_findings(findings)
     user_prompt = f"Original question: {question}\n\nFindings so far:\n{findings_text}"
     raw = llm_call(_REPLAN_SYSTEM_PROMPT, user_prompt)
     return json.loads(raw)["additional_steps"]

@@ -8,6 +8,10 @@ from .search import web_search
 
 TOOL_NAMES = ("web_search", "calculator")
 
+# Groq's free-tier TPM cap is small enough that unbounded search content
+# reliably blows the budget once it's echoed back into a replan/report prompt.
+_MAX_CONTENT_CHARS = 300
+
 
 class ToolResult(TypedDict):
     summary: str
@@ -19,7 +23,9 @@ def run_tool(tool_name: str, tool_input: str) -> ToolResult:
         results = web_search(tool_input)
         if not results:
             return {"summary": "No search results found.", "sources": []}
-        summary = "\n".join(f"- {r['title']}: {r['content']}" for r in results)
+        summary = "\n".join(
+            f"- {r['title']}: {r['content'][:_MAX_CONTENT_CHARS]}" for r in results
+        )
         sources = [r["url"] for r in results]
         return {"summary": summary, "sources": sources}
 
