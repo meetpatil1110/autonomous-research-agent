@@ -15,10 +15,15 @@ dependencies = [
     "typing_extensions==4.12.2",
     "tavily-python==0.8.1",
     "chromadb==1.5.9",
+    "fastapi==0.141.1",
+    "uvicorn[standard]==0.52.4",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest==8.3.4"]
+dev = ["pytest==8.4.2", "httpx==0.28.1", "pytest-asyncio==1.4.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
