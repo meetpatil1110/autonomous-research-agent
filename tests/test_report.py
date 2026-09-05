@@ -39,3 +39,11 @@ def test_generate_report_with_no_sources_omits_references_section():
     fake = _fake_llm("No information was found.")
     report = generate_report(fake, "Unanswerable question", [])
     assert "## References" not in report
+
+
+def test_generate_report_normalizes_fullwidth_brackets():
+    findings = [{"step_id": 0, "content": "x", "sources": ["https://a.example"]}]
+    fake = _fake_llm("The answer is 4【1】.")
+    report = generate_report(fake, "question", findings)
+    assert "[1]" in report
+    assert "【" not in report and "】" not in report

@@ -17,6 +17,8 @@ like [1] or [1][2] pointing at sources.
 Write a structured report answering the question:
 - Use markdown with a few section headings appropriate to the question.
 - Every factual claim must carry the [n] marker(s) from the finding(s) it came from.
+- Use plain ASCII square brackets for markers, e.g. [1], never full-width or
+  any other bracket style.
 - Do not invent new reference numbers or renumber the ones given.
 - Do not write a References/Sources section yourself — that is appended separately.
 Respond with the report body only, no preamble."""
@@ -53,6 +55,10 @@ def generate_report(llm_call: LLMCall, question: str, findings: list[Finding]) -
     findings_block = _format_findings_with_citations(findings, index)
     user_prompt = f"Research question: {question}\n\nFindings:\n{findings_block}"
     body = llm_call(_REPORT_SYSTEM_PROMPT, user_prompt)
+    # Observed gpt-oss-120b occasionally use full-width brackets for markers
+    # despite the prompt; normalize rather than rely on instruction-following
+    # for something this mechanical.
+    body = body.replace("【", "[").replace("】", "]")
 
     if not sources:
         return body
