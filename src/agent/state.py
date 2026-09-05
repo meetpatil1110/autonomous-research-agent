@@ -27,6 +27,7 @@ class ToolCall(TypedDict):
 
 
 class AgentState(TypedDict):
+    run_id: str
     question: str
     plan: list[PlanStep]
     findings: list[Finding]
@@ -35,3 +36,4 @@ class AgentState(TypedDict):
     max_iterations: int
     max_total_steps: int
     current_step_id: Optional[int]
+    report: str

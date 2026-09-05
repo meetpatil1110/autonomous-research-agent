@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+import uuid
 
 from agent.graph import build_graph
 
@@ -11,6 +12,7 @@ def main() -> None:
     graph = build_graph()
     result = graph.invoke(
         {
+            "run_id": uuid.uuid4().hex,
             "question": question,
             "plan": [],
             "findings": [],
@@ -19,6 +21,7 @@ def main() -> None:
             "max_iterations": 3,
             "max_total_steps": 8,
             "current_step_id": None,
+            "report": "",
         },
         config={"recursion_limit": 50},
     )
@@ -36,6 +39,9 @@ def main() -> None:
     for finding in result["findings"]:
         sources = ", ".join(finding["sources"]) or "none"
         print(f"- (step {finding['step_id']}) [{sources}] {finding['content'][:200]}")
+
+    print("\n=== Report ===")
+    print(result["report"])
 
 
 if __name__ == "__main__":

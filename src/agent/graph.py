@@ -3,8 +3,10 @@ from __future__ import annotations
 
 from langgraph.graph import END, StateGraph
 
+from . import memory
 from .llm import call_groq
 from .planner import generate_plan, replan
+from .report import generate_report
 from .state import AgentState
 from .tool_selector import select_tool_with_fallback
 from .tools.registry import run_tool
@@ -21,15 +23,35 @@ def plan_node(state: AgentState) -> dict:
 
 def act_node(state: AgentState) -> dict:
     next_step = next(s for s in state["plan"] if s["status"] == "pending")
-    decision = select_tool_with_fallback(call_groq, next_step["description"])
-    result = run_tool(decision["tool"], decision["tool_input"])
-    tool_call = {
-        "step_id": next_step["id"],
-        "tool": decision["tool"],
-        "input": decision["tool_input"],
-        "output": result["summary"],
-        "sources": result["sources"],
-    }
+    sub_question = next_step["description"]
+
+    cached = memory.find_similar(state["run_id"], sub_question)
+    if cached is not None:
+        tool_call = {
+            "step_id": next_step["id"],
+            "tool": "memory_recall",
+            "input": sub_question,
+            "output": cached["content"],
+            "sources": cached["sources"],
+        }
+    else:
+        decision = select_tool_with_fallback(call_groq, sub_question)
+        result = run_tool(decision["tool"], decision["tool_input"])
+        memory.add_finding(
+            state["run_id"],
+            next_step["id"],
+            sub_question,
+            result["summary"],
+            result["sources"],
+        )
+        tool_call = {
+            "step_id": next_step["id"],
+            "tool": decision["tool"],
+            "input": decision["tool_input"],
+            "output": result["summary"],
+            "sources": result["sources"],
+        }
+
     return {
         "current_step_id": next_step["id"],
         "tool_calls": state["tool_calls"] + [tool_call],
@@ -66,6 +88,14 @@ def replan_node(state: AgentState) -> dict:
     }
 
 
+def report_node(state: AgentState) -> dict:
+    def _call_groq_prose(system: str, user: str) -> str:
+        return call_groq(system, user, json_mode=False)
+
+    report = generate_report(_call_groq_prose, state["question"], state["findings"])
+    return {"report": report}
+
+
 def _route_after_observe(state: AgentState) -> str:
     if any(s["status"] == "pending" for s in state["plan"]):
         return "act"
@@ -74,10 +104,10 @@ def _route_after_observe(state: AgentState) -> str:
 
 def _route_after_replan(state: AgentState) -> str:
     if state["iteration"] >= state["max_iterations"]:
-        return END
+        return "reporter"
     if any(s["status"] == "pending" for s in state["plan"]):
         return "act"
-    return END
+    return "reporter"
 
 
 def build_graph():
@@ -86,6 +116,7 @@ def build_graph():
     graph.add_node("act", act_node)
     graph.add_node("observe", observe_node)
     graph.add_node("replan", replan_node)
+    graph.add_node("reporter", report_node)
 
     graph.set_entry_point("planner")
     graph.add_edge("planner", "act")
@@ -94,6 +125,7 @@ def build_graph():
         "observe", _route_after_observe, {"act": "act", "replan": "replan"}
     )
     graph.add_conditional_edges(
-        "replan", _route_after_replan, {"act": "act", END: END}
+        "replan", _route_after_replan, {"act": "act", "reporter": "reporter"}
     )
+    graph.add_edge("reporter", END)
     return graph.compile()
