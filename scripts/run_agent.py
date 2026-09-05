@@ -14,19 +14,28 @@ def main() -> None:
             "question": question,
             "plan": [],
             "findings": [],
+            "tool_calls": [],
             "iteration": 0,
             "max_iterations": 3,
+            "max_total_steps": 8,
             "current_step_id": None,
-        }
+        },
+        config={"recursion_limit": 50},
     )
 
     print("\n=== Plan ===")
     for step in result["plan"]:
         print(f"[{step['status']}] {step['description']}")
 
+    print("\n=== Reasoning trace ===")
+    for call in result["tool_calls"]:
+        print(f"- step {call['step_id']}: {call['tool']}({call['input']!r})")
+        print(f"    -> {call['output'][:200]}")
+
     print("\n=== Findings ===")
     for finding in result["findings"]:
-        print(f"- (step {finding['step_id']}) {finding['content']}")
+        sources = ", ".join(finding["sources"]) or "none"
+        print(f"- (step {finding['step_id']}) [{sources}] {finding['content'][:200]}")
 
 
 if __name__ == "__main__":

@@ -1,8 +1,4 @@
-"""LangGraph state machine: plan -> act -> observe -> replan (loop) -> end.
-
-`act` and `observe` are stubs in this phase — real tool calls (web search,
-code execution) replace them in Phase 2.
-"""
+"""LangGraph state machine: plan -> act -> observe -> replan (loop) -> end."""
 from __future__ import annotations
 
 from langgraph.graph import END, StateGraph
@@ -10,6 +6,8 @@ from langgraph.graph import END, StateGraph
 from .llm import call_groq
 from .planner import generate_plan, replan
 from .state import AgentState
+from .tool_selector import select_tool_with_fallback
+from .tools.registry import run_tool
 
 
 def plan_node(state: AgentState) -> dict:
@@ -23,7 +21,19 @@ def plan_node(state: AgentState) -> dict:
 
 def act_node(state: AgentState) -> dict:
     next_step = next(s for s in state["plan"] if s["status"] == "pending")
-    return {"current_step_id": next_step["id"]}
+    decision = select_tool_with_fallback(call_groq, next_step["description"])
+    result = run_tool(decision["tool"], decision["tool_input"])
+    tool_call = {
+        "step_id": next_step["id"],
+        "tool": decision["tool"],
+        "input": decision["tool_input"],
+        "output": result["summary"],
+        "sources": result["sources"],
+    }
+    return {
+        "current_step_id": next_step["id"],
+        "tool_calls": state["tool_calls"] + [tool_call],
+    }
 
 
 def observe_node(state: AgentState) -> dict:
@@ -32,16 +42,19 @@ def observe_node(state: AgentState) -> dict:
         {**s, "status": "done"} if s["id"] == current_id else s
         for s in state["plan"]
     ]
-    step = next(s for s in plan if s["id"] == current_id)
+    tool_call = state["tool_calls"][-1]
     finding = {
         "step_id": current_id,
-        "content": f"[stub observation for: {step['description']}]",
+        "content": tool_call["output"],
+        "sources": tool_call["sources"],
     }
     return {"plan": plan, "findings": state["findings"] + [finding]}
 
 
 def replan_node(state: AgentState) -> dict:
     additional = replan(call_groq, state["question"], state["findings"])
+    remaining_capacity = max(state["max_total_steps"] - len(state["plan"]), 0)
+    additional = additional[:remaining_capacity]
     next_id = len(state["plan"])
     new_steps = [
         {"id": next_id + i, "description": desc, "status": "pending"}
