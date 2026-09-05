@@ -25,6 +25,16 @@ app.add_middleware(
 )
 
 
+@app.get("/")
+def root() -> dict[str, str]:
+    return {
+        "service": "autonomous-research-agent",
+        "docs": "/docs",
+        "health": "/health",
+        "research": "POST /research",
+    }
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
